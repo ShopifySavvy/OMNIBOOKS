@@ -16,8 +16,6 @@ interface UploadModalProps {
 export function UploadModal({ isOpen, onClose, onUploadSuccess }: UploadModalProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState('');
-  const [tags, setTags] = useState('');
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -75,8 +73,6 @@ export function UploadModal({ isOpen, onClose, onUploadSuccess }: UploadModalPro
         dateAdded: Date.now(),
         bookmarks: [],
         notes: [],
-        category: category.trim() || 'Uncategorized',
-        tags: tags.split(',').map(t => t.trim()).filter(Boolean)
       };
 
       // Get total pages if possible
@@ -136,29 +132,7 @@ export function UploadModal({ isOpen, onClose, onUploadSuccess }: UploadModalPro
             </button>
           </div>
 
-          <div className="p-6 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Fiction, Science, History"
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-gray-900 dark:text-white placeholder-gray-400"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tags (comma separated)</label>
-              <input
-                type="text"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="e.g. favorite, to-read, research"
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-gray-900 dark:text-white placeholder-gray-400"
-              />
-            </div>
-
+          <div className="p-6">
             <div
               {...getRootProps()}
               className={`

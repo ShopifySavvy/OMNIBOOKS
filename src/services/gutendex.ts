@@ -6,8 +6,6 @@ export interface GutendexBook {
   download_count: number;
   languages: string[];
   media_type: string;
-  subjects: string[];
-  bookshelves: string[];
 }
 
 export interface GutendexResponse {
@@ -21,8 +19,7 @@ const API_URL = 'https://gutendex.com/books';
 
 export const searchGutendexBooks = async (query: string): Promise<GutendexBook[]> => {
   try {
-    const targetUrl = `${API_URL}?search=${encodeURIComponent(query)}`;
-    const response = await fetch(`/api/proxy?url=${encodeURIComponent(targetUrl)}`);
+    const response = await fetch(`${API_URL}?search=${encodeURIComponent(query)}`);
     if (!response.ok) throw new Error('Network response was not ok');
     const data: GutendexResponse = await response.json();
     

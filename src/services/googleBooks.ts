@@ -1,5 +1,3 @@
-import { fetchWithProxy } from '../lib/utils';
-
 export interface GoogleBook {
   id: string;
   volumeInfo: {
@@ -38,7 +36,7 @@ export const searchGoogleBooks = async (query: string): Promise<GoogleBook[]> =>
     const targetUrl = `${API_URL}?q=${encodeURIComponent(query)}&filter=free-ebooks&printType=books&maxResults=20`;
     
     // Use proxy to avoid CORS/network issues
-    const response = await fetchWithProxy(targetUrl);
+    const response = await fetch(`/api/proxy?url=${encodeURIComponent(targetUrl)}`);
     
     if (!response.ok) {
       throw new Error(`Google Books API failed: ${response.status} ${response.statusText}`);

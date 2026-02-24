@@ -7,7 +7,6 @@ export interface IABook {
   language?: string;
   downloads?: number;
   format?: string[];
-  subject?: string | string[];
 }
 
 export interface IAResponse {
@@ -32,15 +31,14 @@ export const searchIABooks = async (query: string): Promise<IABook[]> => {
     const q = `(${query}) AND mediatype:texts AND format:pdf AND NOT collection:openlibrary`;
     const params = new URLSearchParams({
       q: q,
-      fl: 'identifier,title,creator,description,date,language,downloads,format,subject',
+      fl: 'identifier,title,creator,description,date,language,downloads,format',
       sort: 'downloads desc',
       rows: '20',
       page: '1',
       output: 'json'
     });
 
-    const targetUrl = `${API_URL}?${params.toString()}`;
-    const response = await fetch(`/api/proxy?url=${encodeURIComponent(targetUrl)}`);
+    const response = await fetch(`${API_URL}?${params.toString()}`);
     if (!response.ok) throw new Error('Network response was not ok');
     
     const data: IAResponse = await response.json();

@@ -35,11 +35,11 @@ export function BookCard({ book, onClick, onDelete, onToggleRead }: BookCardProp
       <motion.div
         layoutId={`book-${book.id}`}
         whileHover={{ y: -4 }}
-        className="group relative flex flex-col h-full bg-card rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-border"
+        className="group relative flex flex-col h-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 dark:border-gray-700/50"
         onClick={() => onClick(book.id)}
       >
         {/* Cover Image Area */}
-        <div className="relative aspect-[2/3] overflow-hidden bg-muted">
+        <div className="relative aspect-[2/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
           {book.coverUrl ? (
             <img 
               src={book.coverUrl} 
@@ -80,7 +80,7 @@ export function BookCard({ book, onClick, onDelete, onToggleRead }: BookCardProp
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
-              className={`h-full ${isRead ? 'bg-green-500' : 'bg-primary'}`}
+              className={`h-full ${isRead ? 'bg-green-500' : 'bg-cyan-400'}`}
             />
           </div>
           
@@ -93,9 +93,9 @@ export function BookCard({ book, onClick, onDelete, onToggleRead }: BookCardProp
         </div>
 
         {/* Info Area */}
-        <div className="p-4 flex flex-col flex-1 relative bg-card">
+        <div className="p-4 flex flex-col flex-1 relative bg-white dark:bg-gray-800">
           <div className="flex justify-between items-start gap-2 mb-1">
-             <h3 className="font-bold text-card-foreground line-clamp-2 leading-tight text-base group-hover:text-primary transition-colors">
+             <h3 className="font-bold text-gray-900 dark:text-white line-clamp-2 leading-tight text-base group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
               {book.title}
             </h3>
             
@@ -104,29 +104,16 @@ export function BookCard({ book, onClick, onDelete, onToggleRead }: BookCardProp
                 e.stopPropagation();
                 setIsMenuOpen(!isMenuOpen);
               }}
-              className="p-1 -mr-2 -mt-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              className="p-1 -mr-2 -mt-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors shrink-0"
               title="More options"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
           </div>
           
-          <p className="text-sm text-muted-foreground line-clamp-1 mb-2">{book.author}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mb-3">{book.author}</p>
           
-          <div className="flex flex-wrap gap-1 mb-3 h-5 overflow-hidden">
-            {book.category && (
-              <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-md truncate max-w-[100px]">
-                {book.category}
-              </span>
-            )}
-            {book.tags?.slice(0, 1).map((tag, i) => (
-              <span key={i} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md truncate max-w-[100px]">
-                {tag}
-              </span>
-            ))}
-          </div>
-          
-          <div className="mt-auto flex items-center justify-between text-xs text-muted-foreground">
+          <div className="mt-auto flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
             <span className="uppercase tracking-wider font-medium">{book.format}</span>
             <span>{new Date(book.dateAdded).toLocaleDateString()}</span>
           </div>
@@ -147,7 +134,7 @@ export function BookCard({ book, onClick, onDelete, onToggleRead }: BookCardProp
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ duration: 0.1 }}
-                  className="absolute right-2 top-10 w-48 bg-popover rounded-xl shadow-xl border border-border py-1 z-50 overflow-hidden text-popover-foreground"
+                  className="absolute right-2 top-10 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 py-1 z-50 overflow-hidden"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -156,19 +143,19 @@ export function BookCard({ book, onClick, onDelete, onToggleRead }: BookCardProp
                       onToggleRead(book.id, book.progress, book.totalPages || 1);
                       setIsMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     {isRead ? <Circle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                     {isRead ? 'Mark as Unread' : 'Mark as Read'}
                   </button>
-                  <div className="h-px bg-border my-1" />
+                  <div className="h-px bg-gray-100 dark:bg-gray-700 my-1" />
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onDelete(book.id);
                       setIsMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                     Delete Book

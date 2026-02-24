@@ -98,17 +98,6 @@ export const addNote = async (id: string, note: any) => {
   return [];
 };
 
-export const updateBookMetadata = async (id: string, updates: Partial<BookMetadata>) => {
-  const db = await initDB();
-  const book = await db.get(STORE_NAME, id);
-  if (book) {
-    Object.assign(book, updates);
-    await db.put(STORE_NAME, book);
-    return book;
-  }
-  return null;
-};
-
 export const deleteNote = async (id: string, noteId: string) => {
   const db = await initDB();
   const book = await db.get(STORE_NAME, id);

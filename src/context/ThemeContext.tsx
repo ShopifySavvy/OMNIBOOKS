@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-export type Theme = 'light' | 'dark' | 'sepia' | 'midnight';
+type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
-  setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
 }
 
@@ -18,30 +17,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.classList.remove('light', 'dark', 'sepia', 'midnight');
+    root.classList.remove('light', 'dark');
     root.classList.add(theme);
-    
-    // For Tailwind dark mode compatibility
-    if (theme === 'dark' || theme === 'midnight') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    
     localStorage.setItem('theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((prev) => {
-      if (prev === 'light') return 'dark';
-      if (prev === 'dark') return 'sepia';
-      if (prev === 'sepia') return 'midnight';
-      return 'light';
-    });
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

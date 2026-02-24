@@ -15,34 +15,23 @@ interface ReaderProps {
 }
 
 // LazyPage Component for Virtualization
-const LazyPage = React.memo(({ pageNumber, width, scale, onInView, isBookmarked, hasNotes, onPageLoad, initialHeight, forceLoad }: any) => {
-  const [isInView, setIsInView] = useState(forceLoad);
+const LazyPage = ({ pageNumber, width, scale, onInView, isBookmarked, children }: any) => {
+  const [isInView, setIsInView] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
-  const isIntersectingRef = useRef(false);
   const pixelRatio = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1;
-  const [pageHeight, setPageHeight] = useState<number | undefined>(initialHeight);
-
-  useEffect(() => {
-    setPageHeight(undefined);
-  }, [scale, width]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        isIntersectingRef.current = entries[0].isIntersecting;
         if (entries[0].isIntersecting) {
           setIsInView(true);
           onInView(pageNumber);
         } else {
-          // Keep rendered if it was already rendered to prevent layout shifts and flickering during rapid scroll
-          // But if we have the exact height, we can unmount to save memory
-          // Don't unmount if forced
-          if (pageHeight && !forceLoad) {
-             setIsInView(false); 
-          }
+          // Optional: Unload if far away to save memory, but keep for smooth scrolling for now
+          // setIsInView(false);
         }
       },
-      { rootMargin: '200% 0px' } // Preload 2 screen heights above and below
+      { rootMargin: '50% 0px' } // Preload when within 50% of viewport height
     );
 
     if (elementRef.current) {
@@ -50,33 +39,20 @@ const LazyPage = React.memo(({ pageNumber, width, scale, onInView, isBookmarked,
     }
 
     return () => observer.disconnect();
-  }, [pageNumber, onInView, pageHeight, forceLoad]);
-
-  useEffect(() => {
-    if (forceLoad) {
-      setIsInView(true);
-    } else if (!isIntersectingRef.current && pageHeight) {
-      setIsInView(false);
-    }
-  }, [forceLoad, pageHeight]);
+  }, [pageNumber, onInView]);
 
   return (
     <div 
       ref={elementRef} 
       id={`page-${pageNumber}`}
-      className="relative flex justify-center bg-white dark:bg-gray-800 shadow-xl transition-all duration-300" 
+      className="relative min-h-[400px] flex justify-center bg-white dark:bg-gray-800 shadow-xl transition-all duration-300" 
       data-page-number={pageNumber}
       style={{
-        minHeight: pageHeight ? pageHeight : (width ? width * 1.414 : 600),
-        height: pageHeight ? pageHeight : undefined
+        minHeight: width ? width * 1.414 : 600 // Approximate A4 aspect ratio height
       }}
     >
       {isInView ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
+        <>
           <Page 
             pageNumber={pageNumber} 
             width={width || 600}
@@ -90,45 +66,19 @@ const LazyPage = React.memo(({ pageNumber, width, scale, onInView, isBookmarked,
                 <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
               </div>
             }
-            onLoadSuccess={(page) => {
-              const viewport = page.getViewport({ scale: scale * pixelRatio });
-              // We need the height in CSS pixels (divided by pixelRatio)
-              const height = viewport.height / pixelRatio;
-              setPageHeight(height);
-              if (onPageLoad) onPageLoad(pageNumber, height);
-            }}
-            onLoadError={(error) => {
-              if (error.message !== 'TextLayer task cancelled') {
-                console.error(`Page ${pageNumber} load error:`, error);
-              }
-            }}
-            onRenderError={(error) => {
-              if (error.message !== 'TextLayer task cancelled') {
-                console.error(`Page ${pageNumber} render error:`, error);
-              }
-            }}
+            onLoadError={(error) => console.error(`Page ${pageNumber} load error:`, error)}
+            onRenderError={(error) => console.error(`Page ${pageNumber} render error:`, error)}
           />
-          {isBookmarked && (
-            <div className="absolute -top-2 right-4 md:right-8 text-yellow-500 drop-shadow-md z-10">
-              <Bookmark className="w-6 h-8 md:w-8 md:h-10 fill-current" />
-            </div>
-          )}
-          {hasNotes && (
-            <div className="absolute top-2 right-2 md:top-4 md:right-4 z-10">
-              <div className="bg-yellow-200 text-yellow-800 p-1.5 rounded-lg shadow-md border border-yellow-300">
-                <StickyNote className="w-3 h-3 md:w-4 md:h-4" />
-              </div>
-            </div>
-          )}
-        </motion.div>
+          {children}
+        </>
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900/50">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 animate-pulse">
           <span className="text-gray-400 text-sm font-medium">Page {pageNumber}</span>
         </div>
       )}
     </div>
   );
-});
+};
 
 export function Reader({ book, onClose }: ReaderProps) {
   const [numPages, setNumPages] = useState<number>(0);
@@ -144,24 +94,7 @@ export function Reader({ book, onClose }: ReaderProps) {
   const [isEditingPage, setIsEditingPage] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [isAutoFit, setIsAutoFit] = useState(false);
-  const [pageHeights, setPageHeights] = useState<Record<number, number>>({});
-  const [pageInput, setPageInput] = useState(pageNumber.toString());
-  const [isInputFocused, setIsInputFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Sync pageInput with pageNumber when not focused
-  useEffect(() => {
-    if (!isInputFocused) {
-      setPageInput(pageNumber.toString());
-    }
-  }, [pageNumber, isInputFocused]);
-
-  const handlePageLoad = useCallback((pageNumber: number, height: number) => {
-    setPageHeights(prev => {
-      if (prev[pageNumber] === height) return prev;
-      return { ...prev, [pageNumber]: height };
-    });
-  }, []);
   const progressRef = useRef({ pageNumber, numPages });
   
   const options = useMemo(() => ({
@@ -199,7 +132,6 @@ export function Reader({ book, onClose }: ReaderProps) {
           // Subtract padding (32px for mobile p-4, 64px for desktop p-8)
           const padding = window.innerWidth < 768 ? 32 : 64;
           setContainerWidth(entry.contentRect.width - padding);
-          setPageHeights({});
         }
       }
     });
@@ -223,6 +155,13 @@ export function Reader({ book, onClose }: ReaderProps) {
     setLoading(false);
   }
 
+  const changePage = (offset: number) => {
+    setPageNumber(prevPageNumber => {
+      const newPage = prevPageNumber + offset;
+      return Math.min(Math.max(1, newPage), numPages);
+    });
+  };
+
   const scrollToPage = (page: number) => {
     if (viewMode === 'scroll') {
       const pageElement = document.getElementById(`page-${page}`);
@@ -231,11 +170,6 @@ export function Reader({ book, onClose }: ReaderProps) {
       }
     }
     setPageNumber(page);
-  };
-
-  const changePage = (offset: number) => {
-    const newPage = Math.min(Math.max(1, pageNumber + offset), numPages);
-    scrollToPage(newPage);
   };
 
   const handleToggleBookmark = async () => {
@@ -334,7 +268,6 @@ export function Reader({ book, onClose }: ReaderProps) {
   const handleSetScale = (newScale: number | ((s: number) => number)) => {
     setIsAutoFit(false);
     setScale(newScale);
-    setPageHeights({});
   };
 
   const pixelRatio = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1;
@@ -344,20 +277,20 @@ export function Reader({ book, onClose }: ReaderProps) {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col h-screen w-screen overflow-hidden text-foreground"
+      className="fixed inset-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm flex flex-col h-screen w-screen overflow-hidden"
     >
       {/* Toolbar (Top) */}
-      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 bg-card text-card-foreground shadow-md z-10 shrink-0 border-b border-border">
+      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-md z-10 shrink-0 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-muted rounded-full transition-colors shrink-0"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors shrink-0"
           >
             <X className="w-5 h-5 md:w-6 md:h-6" />
           </button>
           <div className="flex flex-col overflow-hidden">
             <h2 className="text-sm md:text-lg font-medium truncate max-w-[150px] md:max-w-md">{book.title}</h2>
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400">
               {saveStatus === 'saving' ? (
                 <>
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -374,11 +307,11 @@ export function Reader({ book, onClose }: ReaderProps) {
         </div>
 
         {/* Desktop: Center Controls */}
-        <div className="hidden md:flex items-center gap-4 bg-muted rounded-full px-4 py-2">
+        <div className="hidden md:flex items-center gap-4 bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-2">
           <button 
             onClick={() => changePage(-1)} 
             disabled={pageNumber <= 1}
-            className="p-1 hover:text-primary disabled:opacity-30 transition-colors"
+            className="p-1 hover:text-cyan-600 dark:hover:text-cyan-400 disabled:opacity-30 transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -388,36 +321,22 @@ export function Reader({ book, onClose }: ReaderProps) {
               type="number" 
               min={1} 
               max={numPages}
-              value={pageInput}
-              onChange={(e) => setPageInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const val = parseInt(pageInput);
-                  if (!isNaN(val) && val >= 1 && val <= numPages) {
-                    scrollToPage(val);
-                    e.currentTarget.blur();
-                  }
-                }
-              }}
-              onFocus={() => setIsInputFocused(true)}
-              onBlur={() => {
-                setIsInputFocused(false);
-                const val = parseInt(pageInput);
+              value={pageNumber}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
                 if (!isNaN(val) && val >= 1 && val <= numPages) {
                   scrollToPage(val);
-                } else {
-                  setPageInput(pageNumber.toString());
                 }
               }}
-              className="w-12 bg-transparent text-center text-sm font-mono focus:outline-none focus:text-primary appearance-none text-foreground"
+              className="w-12 bg-transparent text-center text-sm font-mono focus:outline-none focus:text-cyan-600 dark:focus:text-cyan-400 appearance-none text-gray-900 dark:text-white"
             />
-            <span className="text-sm text-muted-foreground">/ {numPages || '--'}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">/ {numPages || '--'}</span>
           </div>
 
           <button 
             onClick={() => changePage(1)} 
             disabled={pageNumber >= numPages}
-            className="p-1 hover:text-primary disabled:opacity-30 transition-colors"
+            className="p-1 hover:text-cyan-600 dark:hover:text-cyan-400 disabled:opacity-30 transition-colors"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -431,7 +350,7 @@ export function Reader({ book, onClose }: ReaderProps) {
             max={numPages || 1}
             value={pageNumber}
             onChange={(e) => scrollToPage(parseInt(e.target.value))}
-            className="w-full h-1 bg-muted-foreground/20 rounded-lg appearance-none cursor-pointer accent-primary hover:accent-primary/80"
+            className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
           />
         </div>
 
@@ -439,7 +358,7 @@ export function Reader({ book, onClose }: ReaderProps) {
           {/* Desktop: View Mode */}
           <button
             onClick={() => setViewMode(viewMode === 'single' ? 'scroll' : 'single')}
-            className="hidden md:block p-2 hover:bg-muted rounded-full transition-colors"
+            className="hidden md:block p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
             title={viewMode === 'single' ? "Switch to Continuous Scroll" : "Switch to Single Page"}
           >
             {viewMode === 'single' ? <Rows className="w-5 h-5" /> : <Square className="w-5 h-5" />}
@@ -447,17 +366,17 @@ export function Reader({ book, onClose }: ReaderProps) {
 
           <button
             onClick={() => setIsAutoFit(!isAutoFit)}
-            className={`hidden md:block p-2 rounded-full transition-colors ${isAutoFit ? 'text-primary bg-primary/10' : 'hover:bg-muted'}`}
+            className={`hidden md:block p-2 rounded-full transition-colors ${isAutoFit ? 'text-cyan-600 dark:text-cyan-400 bg-cyan-100 dark:bg-cyan-900/20' : 'hover:bg-gray-100 dark:hover:bg-white/10'}`}
             title={isAutoFit ? "Reset Width" : "Fit to Width"}
           >
             {isAutoFit ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
 
-          <div className="hidden md:block w-px h-6 bg-border mx-2"></div>
+          <div className="hidden md:block w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2"></div>
 
           <button
             onClick={handleToggleBookmark}
-            className={`p-2 rounded-full transition-colors ${isBookmarked ? 'text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/20' : 'hover:bg-muted'}`}
+            className={`p-2 rounded-full transition-colors ${isBookmarked ? 'text-yellow-500 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-400/10' : 'hover:bg-gray-100 dark:hover:bg-white/10'}`}
             title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
           >
             <Bookmark className={`w-5 h-5 ${isBookmarked ? 'fill-current' : ''}`} />
@@ -465,28 +384,28 @@ export function Reader({ book, onClose }: ReaderProps) {
           
           <button
             onClick={() => setShowNotes(!showNotes)}
-            className={`p-2 rounded-full transition-colors relative ${showNotes ? 'text-primary bg-primary/10' : 'hover:bg-muted'}`}
+            className={`p-2 rounded-full transition-colors relative ${showNotes ? 'text-cyan-600 dark:text-cyan-400 bg-cyan-100 dark:bg-cyan-400/10' : 'hover:bg-gray-100 dark:hover:bg-white/10'}`}
             title="Notes"
           >
             <StickyNote className="w-5 h-5" />
             {notes.length > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             )}
           </button>
 
-          <div className="hidden md:block w-px h-6 bg-border mx-2"></div>
+          <div className="hidden md:block w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2"></div>
 
           {/* Desktop: Zoom */}
           <button 
             onClick={() => handleSetScale(s => Math.max(0.5, s - 0.1))}
-            className="hidden md:block p-2 hover:bg-muted rounded-full transition-colors"
+            className="hidden md:block p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
           >
             <ZoomOut className="w-5 h-5" />
           </button>
           <span className="hidden md:block text-sm w-12 text-center">{Math.round(scale * 100)}%</span>
           <button 
             onClick={() => handleSetScale(s => Math.min(2.5, s + 0.1))}
-            className="hidden md:block p-2 hover:bg-muted rounded-full transition-colors"
+            className="hidden md:block p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
           >
             <ZoomIn className="w-5 h-5" />
           </button>
@@ -498,7 +417,7 @@ export function Reader({ book, onClose }: ReaderProps) {
         {/* PDF Container */}
         <div 
           ref={containerRef}
-          className="flex-1 overflow-auto flex justify-center p-4 md:p-8 bg-muted/30"
+          className="flex-1 overflow-auto flex justify-center p-4 md:p-8 bg-gray-50 dark:bg-gray-800/50"
           onClick={() => setShowNotes(false)}
           onTouchStart={viewMode === 'single' ? onTouchStart : undefined}
           onTouchMove={viewMode === 'single' ? onTouchMove : undefined}
@@ -533,49 +452,31 @@ export function Reader({ book, onClose }: ReaderProps) {
             >
               {viewMode === 'single' ? (
                 <div className="relative">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={pageNumber}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Page 
-                        pageNumber={pageNumber} 
-                        width={getPageWidth() || 600}
-                        scale={scale}
-                        devicePixelRatio={pixelRatio}
-                        className="shadow-xl"
-                        renderTextLayer={true}
-                        renderAnnotationLayer={true}
-                        onLoadError={(error) => {
-                          if (error.message !== 'TextLayer task cancelled') {
-                            console.error('Page load error:', error);
-                          }
-                        }}
-                        onRenderError={(error) => {
-                          if (error.message !== 'TextLayer task cancelled') {
-                            console.error('Page render error:', error);
-                          }
-                        }}
-                      />
-                      {/* Indicators for Single View */}
-                      {isBookmarked && (
-                        <div className="absolute -top-2 right-4 md:right-8 text-yellow-500 drop-shadow-md z-10">
-                          <Bookmark className="w-6 h-8 md:w-8 md:h-10 fill-current" />
-                        </div>
-                      )}
-                      {currentNotes.length > 0 && (
-                        <div className="absolute top-2 right-2 md:top-4 md:right-4 z-10">
-                          <div className="bg-yellow-200 text-yellow-800 p-1.5 md:p-2 rounded-lg shadow-md border border-yellow-300 max-w-[150px] md:max-w-[200px]">
-                            <p className="text-[10px] md:text-xs font-bold mb-1">Notes:</p>
-                            <p className="text-[10px] md:text-xs line-clamp-2">{currentNotes[0].content}</p>
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  </AnimatePresence>
+                  <Page 
+                    pageNumber={pageNumber} 
+                    width={getPageWidth() || 600}
+                    scale={scale}
+                    devicePixelRatio={pixelRatio}
+                    className="shadow-xl"
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                    onLoadError={(error) => console.error('Page load error:', error)}
+                    onRenderError={(error) => console.error('Page render error:', error)}
+                  />
+                  {/* Indicators for Single View */}
+                  {isBookmarked && (
+                    <div className="absolute -top-2 right-4 md:right-8 text-yellow-500 drop-shadow-md z-10">
+                      <Bookmark className="w-6 h-8 md:w-8 md:h-10 fill-current" />
+                    </div>
+                  )}
+                  {currentNotes.length > 0 && (
+                    <div className="absolute top-2 right-2 md:top-4 md:right-4 z-10">
+                      <div className="bg-yellow-200 text-yellow-800 p-1.5 md:p-2 rounded-lg shadow-md border border-yellow-300 max-w-[150px] md:max-w-[200px]">
+                        <p className="text-[10px] md:text-xs font-bold mb-1">Notes:</p>
+                        <p className="text-[10px] md:text-xs line-clamp-2">{currentNotes[0].content}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 // Scroll View: Render all pages using LazyPage
@@ -584,8 +485,6 @@ export function Reader({ book, onClose }: ReaderProps) {
                     const pageNum = index + 1;
                     const isPageBookmarked = bookmarks.includes(pageNum);
                     const pageNotes = notes.filter(n => n.page === pageNum);
-                    // Preload 4 pages around the current page for smoother scrolling
-                    const shouldForceLoad = Math.abs(pageNum - pageNumber) <= 4;
                     
                     return (
                       <LazyPage
@@ -595,11 +494,20 @@ export function Reader({ book, onClose }: ReaderProps) {
                         scale={scale}
                         onInView={handlePageInView}
                         isBookmarked={isPageBookmarked}
-                        onPageLoad={handlePageLoad}
-                        initialHeight={pageHeights[pageNum]}
-                        hasNotes={pageNotes.length > 0}
-                        forceLoad={shouldForceLoad}
-                      />
+                      >
+                        {isPageBookmarked && (
+                          <div className="absolute -top-2 right-4 md:right-8 text-yellow-500 drop-shadow-md z-10">
+                            <Bookmark className="w-6 h-8 md:w-8 md:h-10 fill-current" />
+                          </div>
+                        )}
+                        {pageNotes.length > 0 && (
+                          <div className="absolute top-2 right-2 md:top-4 md:right-4 z-10">
+                            <div className="bg-yellow-200 text-yellow-800 p-1.5 rounded-lg shadow-md border border-yellow-300">
+                              <StickyNote className="w-3 h-3 md:w-4 md:h-4" />
+                            </div>
+                          </div>
+                        )}
+                      </LazyPage>
                     );
                   })}
                 </div>
@@ -766,28 +674,14 @@ export function Reader({ book, onClose }: ReaderProps) {
               <input
                 type="number"
                 className="w-12 bg-transparent text-center text-sm font-bold text-gray-900 dark:text-white focus:outline-none appearance-none border-b border-cyan-500"
-                value={pageInput}
-                onChange={(e) => setPageInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const val = parseInt(pageInput);
-                    if (!isNaN(val) && val >= 1 && val <= numPages) {
-                      scrollToPage(val);
-                      setIsEditingPage(false);
-                    }
-                  }
-                }}
-                onFocus={() => setIsInputFocused(true)}
-                onBlur={() => {
-                  setIsInputFocused(false);
-                  setIsEditingPage(false);
-                  const val = parseInt(pageInput);
+                value={pageNumber}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
                   if (!isNaN(val) && val >= 1 && val <= numPages) {
                     scrollToPage(val);
-                  } else {
-                    setPageInput(pageNumber.toString());
                   }
                 }}
+                onBlur={() => setIsEditingPage(false)}
                 autoFocus
               />
             ) : (

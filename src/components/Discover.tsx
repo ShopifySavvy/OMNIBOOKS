@@ -11,19 +11,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { pdfjs, standardFontDataUrl, cMapUrl, cMapPacked } from '../lib/pdf-worker';
 
-const formatBytes = (bytes: number, decimals = 2) => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-};
-
 interface DiscoverProps {
   onBookAdded: () => void;
   onOpenBook: (id: string) => void;
-  isOfflineMode?: boolean;
 }
 
 type SearchResult = 
@@ -32,20 +22,18 @@ type SearchResult =
   | { type: 'gutendex'; data: GutendexBook }
   | { type: 'archive'; data: IABook };
 
-export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: DiscoverProps) {
+export function Discover({ onBookAdded, onOpenBook }: DiscoverProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [downloadingBookId, setDownloadingBookId] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
-  const [downloadStats, setDownloadStats] = useState<{ loaded: number, total: number } | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [bookErrors, setBookErrors] = useState<Record<string, string>>({});
   const [downloadedBooks, setDownloadedBooks] = useState<Record<string, string>>({}); // Map ID to local Book ID
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const isSystemOnline = useOnlineStatus();
-  const isOnline = isSystemOnline && !isOfflineMode;
+  const isOnline = useOnlineStatus();
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -158,7 +146,6 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
     
     setDownloadingBookId(bookId);
     setDownloadProgress(0);
-    setDownloadStats(null);
     setDownloadStatus('connecting');
     setBookErrors(prev => {
       const next = { ...prev };
@@ -264,8 +251,6 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
         chunks.push(value);
         loaded += value.length;
         
-        setDownloadStats({ loaded, total });
-
         if (total > 0) {
           setDownloadProgress(Math.round((loaded / total) * 100));
         } else {
@@ -380,16 +365,15 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
     } finally {
       setDownloadingBookId(null);
       setDownloadProgress(0);
-      setDownloadStats(null);
       setDownloadStatus('connecting');
     }
   };
 
   if (!isOnline) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 text-center text-gray-400 dark:text-gray-500">
         <WifiOff className="w-16 h-16 mb-4 opacity-20" />
-        <h3 className="text-xl font-semibold text-foreground mb-2">You are offline</h3>
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">You are offline</h3>
         <p className="text-lg">Connect to the internet to search and download books.</p>
         <p className="text-sm mt-2">Your downloaded books are available in your Library.</p>
       </div>
@@ -401,18 +385,18 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
       <div className="mb-8">
         <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto">
           <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-cyan-500 transition-colors" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search for books, authors, or subjects..."
-              className="w-full pl-12 pr-4 py-4 bg-card border border-border rounded-2xl text-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm text-foreground placeholder-muted-foreground"
+              className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm text-gray-900 dark:text-white placeholder-gray-400"
             />
             <button 
               type="submit"
               disabled={isLoading || !query.trim()}
-              className="absolute right-2 top-2 bottom-2 px-6 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground rounded-xl font-medium transition-colors"
+              className="absolute right-2 top-2 bottom-2 px-6 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-xl font-medium transition-colors"
             >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Search'}
             </button>
@@ -421,7 +405,7 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
       </div>
 
       {searchError && (
-        <div className="mb-8 p-4 bg-destructive/10 text-destructive rounded-xl flex items-center justify-between gap-2 border border-destructive/20">
+        <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
             {searchError}
@@ -479,10 +463,10 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
               key={bookId}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card rounded-2xl p-4 shadow-sm border border-border flex flex-col h-full"
+              className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full"
             >
               <div className="flex gap-4">
-                <div className="w-24 h-36 shrink-0 bg-muted rounded-lg overflow-hidden shadow-inner relative">
+                <div className="w-24 h-36 shrink-0 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden shadow-inner relative">
                   {cover ? (
                     <img
                       src={cover}
@@ -490,31 +474,31 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground/50">
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600">
                       <BookOpen className="w-8 h-8" />
                     </div>
                   )}
                   {/* Source Badge */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-0.5 backdrop-blur-sm">
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5 backdrop-blur-sm">
                     {sourceLabel}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col">
-                  <h3 className="font-semibold text-card-foreground line-clamp-2 mb-1" title={title}>
+                  <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1" title={title}>
                     {title}
                   </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">
                     {author}
                   </p>
                   
-                  <div className="flex flex-wrap gap-2 mb-4 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap gap-2 mb-4 text-xs text-gray-400 dark:text-gray-500">
                     {year && (
-                      <span className="bg-muted px-2 py-0.5 rounded-md">
+                      <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md">
                         {year}
                       </span>
                     )}
                     {language && (
-                      <span className="bg-muted px-2 py-0.5 rounded-md uppercase">
+                      <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md uppercase">
                         {language}
                       </span>
                     )}
@@ -525,7 +509,7 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                       <div className="flex gap-2">
                         <button
                           onClick={() => onOpenBook(downloadedBooks[bookId])}
-                          className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm shadow-green-500/20"
+                          className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm shadow-green-200 dark:shadow-green-900/30"
                         >
                           <Play className="w-4 h-4 fill-current" />
                           Open
@@ -536,7 +520,7 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                               e.stopPropagation();
                               setOpenMenuId(openMenuId === bookId ? null : bookId);
                             }}
-                            className="p-2 bg-muted hover:bg-muted/80 rounded-lg transition-colors text-muted-foreground"
+                            className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors text-gray-600 dark:text-gray-300"
                           >
                             <MoreVertical className="w-4 h-4" />
                           </button>
@@ -548,11 +532,11 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                                 initial={{ opacity: 0, scale: 0.95, y: 5 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                                className="absolute bottom-full right-0 mb-2 w-48 bg-popover rounded-xl shadow-xl border border-border overflow-hidden z-20"
+                                className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-20"
                               >
                                 <button
                                   onClick={() => handleDeleteBook(bookId)}
-                                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                   Delete from Library
@@ -565,35 +549,28 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                     ) : (
                       <div className="flex flex-col gap-2">
                         {bookErrors[bookId] && (
-                          <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-xs flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
                             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                             <span className="font-medium">{bookErrors[bookId]}</span>
                           </div>
                         )}
                         
                         {downloadingBookId === bookId ? (
-                          <div className="w-full bg-muted/50 border border-border rounded-lg p-3">
-                            <div className="flex justify-between text-xs mb-2 font-medium text-foreground">
+                          <div className="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-lg p-3">
+                            <div className="flex justify-between text-xs mb-2 font-medium text-gray-700 dark:text-gray-300">
                               <span className="capitalize">{downloadStatus === 'connecting' ? 'Starting...' : downloadStatus === 'processing' ? 'Verifying...' : 'Downloading'}</span>
-                              <div className="flex flex-col items-end">
-                                <span className="text-primary">{downloadProgress > 0 ? `${downloadProgress}%` : ''}</span>
-                                {downloadStats && (
-                                  <span className="text-[10px] text-muted-foreground font-mono">
-                                    {formatBytes(downloadStats.loaded)} {downloadStats.total > 0 ? `/ ${formatBytes(downloadStats.total)}` : ''}
-                                  </span>
-                                )}
-                              </div>
+                              <span className="text-cyan-600 dark:text-cyan-400">{downloadProgress > 0 ? `${downloadProgress}%` : ''}</span>
                             </div>
-                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden relative">
+                            <div className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden relative">
                               {downloadProgress <= 0 || downloadStatus === 'connecting' ? (
                                 <motion.div 
-                                  className="absolute inset-y-0 bg-primary rounded-full w-1/3"
+                                  className="absolute inset-y-0 bg-cyan-500 rounded-full w-1/3"
                                   animate={{ left: ['-33%', '100%'] }}
                                   transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
                                 />
                               ) : (
                                 <motion.div 
-                                  className="h-full bg-primary rounded-full"
+                                  className="h-full bg-cyan-500 rounded-full"
                                   initial={{ width: 0 }}
                                   animate={{ 
                                     width: downloadStatus === 'processing' ? '100%' : `${Math.max(5, downloadProgress)}%` 
@@ -609,10 +586,10 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                             disabled={downloadingBookId !== null}
                             className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors 
                               ${downloadingBookId !== null
-                                ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+                                ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50'
                                 : bookErrors[bookId]
-                                  ? 'bg-card border border-destructive/50 text-destructive hover:bg-destructive/10'
-                                  : 'bg-muted hover:bg-primary/10 hover:text-primary text-foreground'
+                                  ? 'bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                                  : 'bg-gray-100 dark:bg-gray-700 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 hover:text-cyan-600 dark:hover:text-cyan-400 text-gray-700 dark:text-gray-300'
                               }`}
                           >
                             {bookErrors[bookId] ? <Download className="w-4 h-4" /> : <Download className="w-4 h-4" />}
@@ -627,7 +604,7 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                         href={getPdfUrl(result.data.ia[0])}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-cyan-500 transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" />
                         Direct Link
@@ -638,7 +615,7 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                         href={getGoogleBookDownloadLink(result.data)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-cyan-500 transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" />
                         Direct Link
@@ -649,7 +626,7 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                         href={getGutendexDownloadLink(result.data)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-cyan-500 transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" />
                         Direct Link
@@ -660,7 +637,7 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                         href={getIAPdfUrl(result.data.identifier)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-cyan-500 transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" />
                         Direct Link
@@ -670,12 +647,12 @@ export function Discover({ onBookAdded, onOpenBook, isOfflineMode = false }: Dis
                 </div>
               </div>
             </motion.div>
-            );
+          );
           })}
         </div>
       ) : (
         !isLoading && !searchError && (
-          <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
+          <div className="flex flex-col items-center justify-center py-20 text-center text-gray-400 dark:text-gray-500">
             <BookOpen className="w-16 h-16 mb-4 opacity-20" />
             <p className="text-lg">Search for public domain books to add to your library.</p>
             <p className="text-sm mt-2">Powered by Open Library, Internet Archive, Google Books & Project Gutenberg</p>

@@ -1,5 +1,3 @@
-import { fetchWithProxy } from '../lib/utils';
-
 const SEARCH_API_URL = 'https://openlibrary.org/search.json';
 
 export interface OpenLibraryBook {
@@ -22,7 +20,7 @@ export interface SearchResponse {
 
 export const searchBooks = async (query: string, page: number = 1): Promise<SearchResponse> => {
   try {
-    const response = await fetchWithProxy(
+    const response = await fetch(
       `${SEARCH_API_URL}?q=${encodeURIComponent(query)}&fields=key,title,author_name,cover_i,ia,first_publish_year,language,ebook_access&limit=20&page=${page}`
     );
     if (!response.ok) {
@@ -64,7 +62,7 @@ export const getPdfUrl = (iaId: string) => {
 
 export const getBookDescription = async (key: string): Promise<string | undefined> => {
   try {
-    const response = await fetchWithProxy(`https://openlibrary.org${key}.json`);
+    const response = await fetch(`https://openlibrary.org${key}.json`);
     if (!response.ok) return undefined;
     
     const data = await response.json();

@@ -22,8 +22,6 @@ export interface Book {
   description?: string;
   publishYear?: number;
   language?: string[];
-  category?: string;
-  tags?: string[];
 }
 
 export type BookMetadata = Omit<Book, 'fileBlob'>;
